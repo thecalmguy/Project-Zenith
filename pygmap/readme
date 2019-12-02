@@ -1,0 +1,3 @@
+The pygmap.py is the script which will show the co-ordinates in map
+The co-ordinates to be displayed are already set in the file.
+copy the entire folder(Pygmap Folder) to a location and run this script to view the co-ordinates in google maps
