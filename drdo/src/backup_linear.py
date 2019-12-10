@@ -88,7 +88,7 @@ class UAV:
             #Update current altitude
             self.curr_alt = self.altitude.local
             #If linear search completed - break
-            if zam_search_completed: break
+            if lin_search_completed: break
             #First check it just started
             if self.curr_alt < 0.5:
                 z_velocity = 40
@@ -121,61 +121,101 @@ class UAV:
             except rospy.ROSException as error:
                 rospy.loginfo(error)
 
-    def reach_point(self, req_x, req_y, timeout):
-        global start_reached
-        rospy.loginfo("Moving UAV{0} to point ({1},{2})"
-                      .format(self.uav_index, req_x, req_y))
+    #Function to reach x point
+    def reach_point_x(self, req_x, timeout):
+        global uav_reached_limits
+        rospy.loginfo("Moving along x")
         loop_freq = 100
-        reached_point = [0, 0]
         rate = rospy.Rate(loop_freq)
         for i in range(timeout*loop_freq):
+            #Update current pose
             self.curr_pose = self.local_pose.pose
-            #If reached
-            if np.sum(reached_point) == 2:
-                start_reached[self.uav_index] = 1
-                self.vel_cont.linear.x = 0
-                self.vel_cont.linear.y = 0
-                rospy.loginfo("UAV{0} reached point".format(self.uav_index))
-                break
             #If within required x
-            if abs(req_x-self.curr_pose.position.x) < 0.01:
+            if abs(req_x-self.curr_pose.position.x) < 0.1:
                 self.vel_cont.linear.x = 0
-                reached_point[0] = 1
+                rospy.loginfo("Limit reached")
+                uav_reached_limits[self.uav_index] = True
+                break
             #Else
             else:
                 if req_x > self.curr_pose.position.x:
                     self.vel_cont.linear.x = 100
                 elif req_x < self.curr_pose.position.x:
                     self.vel_cont.linear.x = -100
-
-            #If within required y
-            if abs(req_y-self.curr_pose.position.y) < 0.01:
-                self.vel_cont.linear.y = 0
-                reached_point[1] = 1
-            #Else
-            else:
-                if req_y > self.curr_pose.position.y:
-                    self.vel_cont.linear.y = 100*abs(self.curr_pose.position.y-req_y)
-                elif req_y < self.curr_pose.position.y:
-                    self.vel_cont.linear.y = -100*abs(self.curr_pose.position.y-req_y)
             try:
                 rate.sleep()
             except rospy.ROSException as error:
                 rospy.loginfo(error)
 
+    #Function to reach y point
+    def reach_point_y(self, req_y, timeout):
+        global start_reached
+        rospy.loginfo("Moving along y")
+        loop_freq = 100
+        rate = rospy.Rate(loop_freq)
+        for i in range(timeout*loop_freq):
+            #Update current pose
+            self.curr_pose = self.local_pose.pose
+            #If within required y
+            if abs(req_y-self.curr_pose.position.y) < 0.1:
+                self.vel_cont.linear.y = 0
+                rospy.loginfo("Point reached")
+                start_reached[self.uav_index] = 1
+                break
+            #Else
+            else:
+                if req_y > self.curr_pose.position.y:
+                    self.vel_cont.linear.y = 100
+                elif req_y < self.curr_pose.position.y:
+                    self.vel_cont.linear.y = -100
+            try:
+                rate.sleep()
+            except rospy.ROSException as error:
+                rospy.loginfo(error)
+
+    #Function to perform linear search
+    def lin_search(self):
+        rospy.loginfo("UAV{0} Performing linear search".format(self.uav_index))
+        #Wait until all the UAVs are at 5m
+        while True:
+            if np.sum(altitude_reached) == 3: break
+        #Set difference in distances
+        self.reach_point_y(uav_y_dists[self.uav_index],50)
+        #Wait until all the UAVs are at starting y positions
+        while True:
+            if np.sum(start_reached) == 3: break
+        #Start at lower limit
+        self.reach_point_x(uav_x_low_limit[self.uav_index], 100)
+        #Repeat 2 times
+        for i in range(3):
+            #Go to upper limit
+            self.reach_point_x(uav_x_high_limit[self.uav_index], 100)
+            #If reached limit, move along y for 1m
+            self.reach_point_y(self.curr_pose.position.y+1,50)
+            #Then go to lower limit
+            self.reach_point_x(uav_x_low_limit[self.uav_index], 100)
+            #If reached limit, move along y for 1m
+            self.reach_point_y(self.curr_pose.position.y+1,50)
+            #Repeat
+        rospy.loginfo("Linear Search Completed")
+
     #Function to perform orbit
     def perform_orbit_up(self, dist, timeout):
-        rospy.loginfo("UAV{0} performing orbit".format(self.uav_index))
+        rospy.loginfo("UAV{0} Performing Orbit".format(self.uav_index))
         loop_freq = 100
         rate = rospy.Rate(loop_freq)
         init_y = self.local_pose.pose.position.y
+        #Until uav doesn't reach height
+        # while not uav_reached_limits[self.uav_index]:
+        #     rospy.loginfo("Set x velocity")
+        #     self.vel_cont.linear.x = 80
         self.vel_cont.linear.x = 100
         for i in range(timeout*loop_freq):
             self.curr_pose = self.local_pose.pose
-            if abs(self.curr_pose.position.y - (init_y - dist)) < 0.05:
+            if abs(self.curr_pose.position.y - (init_y - dist)) < 0.1:
                 self.vel_cont.linear.y = 0
                 self.vel_cont.angular.z = 0
-                rospy.loginfo("UAV{0} performed orbit".format(self.uav_index))
+                rospy.loginfo("Performed Orbit")
                 break
             else:
                 self.vel_cont.linear.y = -100
@@ -188,16 +228,20 @@ class UAV:
 
     #Function to perform orbit
     def perform_orbit_down(self, dist, timeout):
-        rospy.loginfo("UAV{0} performing orbit".format(self.uav_index))
+        rospy.loginfo("UAV{0} Performing Orbit".format(self.uav_index))
         loop_freq = 100
         rate = rospy.Rate(loop_freq)
         init_y = self.local_pose.pose.position.y
+        #Until uav doesn't reach height
+        # while not uav_reached_limits[self.uav_index]:
+        #     rospy.loginfo("Set x velocity")
+        #     self.vel_cont.linear.x = 80
         self.vel_cont.linear.x = -100
         for i in range(timeout*loop_freq):
             self.curr_pose = self.local_pose.pose
-            if abs(self.curr_pose.position.y - (init_y + dist)) < 0.05:
+            if abs(self.curr_pose.position.y - (init_y + dist)) < 0.1:
                 self.vel_cont.linear.y = 0
-                rospy.loginfo("UAV{0} performed orbit".format(self.uav_index))
+                rospy.loginfo("Performed Orbit")
                 break
             else:
                 self.vel_cont.linear.y = 100
@@ -209,34 +253,40 @@ class UAV:
                 rospy.loginfo(error)
 
     def zamboni_search(self):
-        rospy.loginfo("UAV{0} Performing Zamboni Pattern search".format(self.uav_index))
+        rospy.loginfo("UAV{0} Performing Zamboni search".format(self.uav_index))
         #Wait until all the UAVs are at 5m
         while True:
             if np.sum(altitude_reached) == 3: break
-        #Set to start positions
-        self.reach_point(0, y_points[self.uav_index],50)
-        #Wait until all the UAVs are at starting positions
+        #Set difference in distances
+        self.reach_point_y(uav_y_dists[self.uav_index],50)
+        #Wait until all the UAVs are at starting y positions
         while True:
             if np.sum(start_reached) == 3: break
+        #Start at lower limit
+        self.reach_point_x(uav_x_low_limit[self.uav_index], 100)
         #Repeat 2 times
         for i in range(2):
             #Go to upper limit along x
-            self.reach_point(10, self.curr_pose.position.y, 100)
-            #If reached limit, perform orbit
+            self.reach_point_x(uav_x_high_limit[self.uav_index], 100)
+            #If reached limit, move along y for 1m
             self.perform_orbit_up(6.65,100)
             #Then go to lower limit
-            self.reach_point(0, self.curr_pose.position.y, 100)
-            #If reached limit, perform orbit
+            self.reach_point_x(uav_x_low_limit[self.uav_index], 100)
+            #If reached limit, move along y for 1m
             self.perform_orbit_down(4.43,100)
             #Repeat
         #Go to upper limit along x
-        self.reach_point(10, self.curr_pose.position.y, 100)
-        #If reached limit, perform orbit
+        self.reach_point_x(uav_x_high_limit[self.uav_index], 100)
+        #If reached limit, move along y for 1m
         self.perform_orbit_up(6.65,100)
         #Then go to lower limit
-        self.reach_point(0, self.curr_pose.position.y, 100)
-        rospy.loginfo("Zamboni Pattern Search Completed")
-        zam_search_completed = True
+        self.reach_point_x(uav_x_low_limit[self.uav_index], 100)
+        rospy.loginfo("Zamboni Search Completed")
+        lin_search_completed = 1
+
+    # #Callback function for current GPS coordinates
+    # def global_position_callback(self, data):
+    #     self.global_position = data
 
     #Callback function for current pose(local)
     def local_pose_callback(self, data):
@@ -257,10 +307,13 @@ if __name__ == "__main__":
     uav2 = UAV(2)
     #Linear search parameters
     grid_map = np.zeros([80,150], dtype=int)
-    zam_search_completed = False
+    uav_y_dists = [0, 13.33, 26.67]
+    uav_x_low_limit = [0,0,0]
+    uav_x_high_limit = [10,10,10]
+    uav_reached_limits = [False,False,False]
+    lin_search_completed = False
     altitude_reached = [0,0,0]
     start_reached = [0,0,0]
-    y_points = [0,13.33,26.67]
     #Threads for altitude set
     uav0_alt_thread = Thread(target=uav0.hold_altitude, args=(5,50))
     uav0_alt_thread.daemon = True
