@@ -174,7 +174,6 @@ class UAV:
             self.curr_pose = self.local_pose.pose
             if abs(self.curr_pose.position.y - (init_y - dist)) < 0.05:
                 self.vel_cont.linear.y = 0
-                self.vel_cont.angular.z = 0
                 rospy.loginfo("UAV{0} performed orbit".format(self.uav_index))
                 break
             else:
