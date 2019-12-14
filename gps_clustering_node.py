@@ -56,7 +56,3 @@ if __name__ == '__main__':
     except rospy.ROSInterruptException:
         pass
 
-
-
-gps_data = []
-gps_data.append((x,y))
