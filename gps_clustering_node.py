@@ -36,7 +36,7 @@ def cluster_data(bandwidth):
     #Define bandwidth for the clustering
     global gps_coordinates
     #Run only when gps_coordinates variable is not empty
-    if not len(gps_coordinates):
+    if len(gps_coordinates):
         #Perform mean shift clustering
         cluster_obj = MeanShift(bandwidth).fit(gps_coordinates)
         #Print number of clusters for given bandwidth
