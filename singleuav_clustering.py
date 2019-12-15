@@ -15,7 +15,7 @@ obj_found_1=56
 
 def obj_number_cb1(data_temp):
     print("obj data updated")
-    global obj_found_1 
+    global obj_found_1
     obj_found_1 = int(data_temp.data)
     print(obj_found_1)
 
@@ -28,10 +28,10 @@ def gps_cb1(data):
         gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)));
 
 def cluster_data(bandwidth):
+    global gps_coordinates, box_coordinates
     #Define bandwidth for the clustering
     print("cluster code called")
     print(len(gps_coordinates))
-    global gps_coordinates, box_coordinates
     #Run only when gps_coordinates variable is not empty
     if len(gps_coordinates):
         #Perform mean shift clustering
@@ -42,7 +42,7 @@ def cluster_data(bandwidth):
         print("No. of clusters detected: {0}".format(len(cluster_obj.cluster_centers_)))
         #Update box coordinates
         box_coordinates = cluster_obj.cluster_centers_
-        
+
 
 #rospy.spin()
 
@@ -59,7 +59,7 @@ def cluster_node_func():
             box_gps_msg.latitude = (box[0]/10000000)+lat_offset
             box_gps_msg.longitude = (box[1]/1000000)+lon_offset
             pub.publish(box_gps_msg)
-        
+
         rate.sleep()
 
 if __name__ == '__main__':
