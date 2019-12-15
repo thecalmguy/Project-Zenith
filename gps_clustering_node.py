@@ -46,7 +46,7 @@ def cluster_data(bandwidth):
 
 #rospy.spin()
 
-def talker():
+def cluster_node_func():
     rospy.init_node('gps_clustering_node', anonymous=True)
     rospy.Subscriber("/uav1/mavros/global_position/global", NavSatFix, gps_cb1)
     rospy.Subscriber("/uav2/mavros/global_position/global", NavSatFix, gps_cb2)
