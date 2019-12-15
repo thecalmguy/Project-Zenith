@@ -53,6 +53,6 @@ def cluster_node_func():
 
 if __name__ == '__main__':
     try:
-        talker()
+        cluster_node_func()
     except rospy.ROSInterruptException:
         pass
