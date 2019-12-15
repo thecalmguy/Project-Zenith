@@ -1,4 +1,6 @@
 from ctypes import *
+import rospy	
+from std_msgs.msg import Int8
 import math
 import random
 import os
@@ -80,6 +82,11 @@ def YOLO():
         except Exception:
             pass
     #cap = cv2.VideoCapture(0)
+
+    # publisher and node initialized
+    pub = rospy.Publisher('/uav1/obj_found', Int8, queue_size=10)
+    rospy.init_node('uav1_obj_found', anonymous=True)
+
     cap = cv2.VideoCapture("test.mp4")
     cap.set(3, 1280)
     cap.set(4, 720)
@@ -103,6 +110,7 @@ def YOLO():
         darknet.copy_image_from_bytes(darknet_image,frame_resized.tobytes())
 
         detections = darknet.detect_image(netMain, metaMain, darknet_image, thresh=0.25)
+        pub.publish(len(detections))
         image = cvDrawBoxes(detections, frame_resized)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         print(1/(time.time()-prev_time))
