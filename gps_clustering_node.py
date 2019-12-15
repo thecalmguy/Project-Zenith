@@ -10,6 +10,7 @@ lat_offset = 26.192
 lon_offset=91.69
 gps_coordinates=[]
 box_coordinates=[]
+box_gps_msg = NavSatFix()
 
 obj_found_1=obj_found_2=obj_found_3 = Int8()
 
@@ -63,20 +64,25 @@ def cluster_data(bandwidth):
             plt.plot(gps_coordinates[k][0], gps_coordinates[k][1], colors[k])
             # plt.plot(box_coordinates[k][0], box_coordinates[k][1], 'o',
             #          markerfacecolor=colors[k], markeredgecolor='k', markersize=14)
+            box_gps_msg.latitude = (box[0]/10000000)+lat_offset
+            box_gps_msg.longitude = (box[1]/1000000)+lon_offset
+            pub.publish(box_gps_msg)
         plt.title('Number of clusters: {0}'.format(num_clusters))
         plt.show(block = False)
         plt.pause(0.001)
 
 #rospy.spin()
 
-def talker():
+def cluster_node_func():
     rospy.init_node('gps_clustering_node', anonymous=True)
-    rospy.Subscriber("/uav0/mavros/global_position/global", NavSatFix, gps_cb1)
-    rospy.Subscriber("/uav1/mavros/global_position/global", NavSatFix, gps_cb2)
-    rospy.Subscriber("/uav2/mavros/global_position/global", NavSatFix, gps_cb3)
-    rospy.Subscriber("/uav0/obj_found", Int8, obj_number_cb1)
-    rospy.Subscriber("/uav1/obj_found", Int8, obj_number_cb2)
-    rospy.Subscriber("/uav2/obj_found", Int8, obj_number_cb3)
+    rospy.Subscriber("/uav1/mavros/global_position/global", NavSatFix, gps_cb1)
+    rospy.Subscriber("/uav2/mavros/global_position/global", NavSatFix, gps_cb2)
+    rospy.Subscriber("/uav3/mavros/global_position/global", NavSatFix, gps_cb3)
+    rospy.Subscriber("/uav1/obj_found", Int8, obj_number_cb1)
+    rospy.Subscriber("/uav2/obj_found", Int8, obj_number_cb2)
+    rospy.Subscriber("/uav3/obj_found", Int8, obj_number_cb3)
+    pub = rospy.Publisher('/box_gps', NavSatFix, queue_size=10)
+
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         plt.show(block = False)
