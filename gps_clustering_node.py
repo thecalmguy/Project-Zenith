@@ -5,7 +5,7 @@ from sensor_msgs.msg import NavSatFix
 from sklearn.cluster import MeanShift
 #from threading import Thread
 
-lat_offset = 26.192, lon_offset=91.69
+lat_offset = 26.19, lon_offset=91.69
 gps_coordinates=[]
 box_coordinates=[]
 
