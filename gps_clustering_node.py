@@ -8,6 +8,7 @@ from sklearn.cluster import MeanShift
 lat_offset = 26.19, lon_offset=91.69
 gps_coordinates=[]
 box_coordinates=[]
+box_gps_msg = NavSatFix()
 
 obj_found_1=obj_found_2=obj_found_3 = Int8()
 
@@ -43,6 +44,10 @@ def cluster_data(bandwidth):
         print("No. of clusters detected: {0}".format(len(cluster_obj.cluster_centers_)))
         #Update box coordinates
         box_coordinates = cluster_obj.cluster_centers_
+        for box in box_coordinates:
+            box_gps_msg.latitude = (box[0]/10000000)+lat_offset
+            box_gps_msg.longitude = (box[1]/1000000)+lon_offset
+            pub.publish(box_gps_msg)
 
 #rospy.spin()
 
@@ -54,6 +59,8 @@ def cluster_node_func():
     rospy.Subscriber("/uav1/obj_found", Int8, obj_number_cb1)
     rospy.Subscriber("/uav2/obj_found", Int8, obj_number_cb2)
     rospy.Subscriber("/uav3/obj_found", Int8, obj_number_cb3)
+    pub = rospy.Publisher('/box_gps', NavSatFix, queue_size=10)
+
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         cluster_data(50)
