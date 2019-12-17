@@ -44,7 +44,7 @@ def gps_cb1(data):
     if obj_found_1 > 0 and counter1>=append_freq :
         rospy.loginfo("UAV1 found box")
         gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")   
+        f.write(str(gps_coordinates[-1])+"\n")
         counter1=0
 
 def gps_cb2(data):
