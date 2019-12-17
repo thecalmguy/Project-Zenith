@@ -113,14 +113,14 @@ def pixel_to_global(x, y, gps_center, heading, height):
     x0 = 640/2
     y0 = 480/2
     pix_to_m = 1*height/640
-    theta_pixel = np.pi/2 - np.arctan2(480-y,x)
+    theta_pixel = np.arctan2(480-y,x) - np.pi/2
     dist_pixel  = sqrt((x-x0)**2 + (480-y-y0)**2)
     theta       = heading*np.pi/180 + theta_pixel
     dist_met    = dist_pixel * pix_to_m
-    x_met       = dist_met * sin(theta + 90)
+    x_met       = -dist_met * sin(theta + 90)
     y_met       = dist_met * cos(theta + 90)
-    lat         = gps_center[0] + y_met#times something
-    lon         = gps_center[1] + x_met#times something
+    lat         = gps_center[0] + y_met/102470#times something
+    lon         = gps_center[1] + x_met/102470#times something
     return (lat, lon)
 
 def cluster_data(bandwidth):
