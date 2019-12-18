@@ -12,15 +12,14 @@ lat_offset = 26.19#47.39
 lon_offset = 91.69#8.54
 gps_coordinates=[]
 box_coordinates=[]
-box_gps_msg = NavSatFix()
-center_gps_coordinates = Float64MultiArray()
+final_gps_coordinates = Float64MultiArray()
 
 obj_found_1=obj_found_2=obj_found_3 = 0
 
 counter1 = 0
 counter2 = 0
 counter3 = 0
-append_freq = 5
+append_freq = 2
 
 heading1 = 0
 heading2 = 0
@@ -28,108 +27,105 @@ heading3 = 0
 height1 = 0
 height2 = 0
 height3 = 0
-loc1 = 0
-loc2 = 0
-loc3 = 0
+loc1 = (320,240)
+loc2 = (320,240)
+loc3 = (320,240)
 
 f = open('gps_box_swarm.txt','w+')
 
+#Callback functions for no of boxes
 def obj_number_cb1(data):
     global obj_found_1
     obj_found_1=data.data
-
 def obj_number_cb2(data):
     global obj_found_2
     obj_found_2=data.data
-
 def obj_number_cb3(data):
     global obj_found_3
     obj_found_3=data.data
 
+#Callback functions for GPS data and box append
 def gps_cb1(data):
     global gps_coordinates
     global counter1
-    global f
     counter1+=1
-    if obj_found_1 > 0 and counter1>=append_freq :
-        rospy.loginfo("UAV1 found box")
-        trans_data = pixel_global(loc1[1], loc1[0], (data.latitude, data.longitude), heading1, height1)
-        gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
-        counter1=0
-
+    #Reduce frequency by 1/append_freq
+    if counter1>=append_freq :
+        #For each obj_found
+        for i in range(obj_found_1):
+            rospy.loginfo("UAV1 found box")
+            trans_data = pixel_to_global(loc1[0], loc1[1], (data.latitude, data.longitude), heading1, height1)
+            gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
+            f.write(str(gps_coordinates[-1])+"\n")
+            counter1=0
 def gps_cb2(data):
     global gps_coordinates
     global counter2
-    global f
     counter2+=1
-    if obj_found_2 > 0 and counter2>=append_freq:
-        rospy.loginfo("UAV2 found box")
-        trans_data = pixel_global(loc2[1], loc2[0], (data.latitude, data.longitude), heading2, height2)
-        gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
-        counter2=0
-
+    if counter2>=append_freq :
+        #For each obj_found
+        for i in range(obj_found_2):
+            rospy.loginfo("UAV2 found box")
+            trans_data = pixel_to_global(loc2[0], loc2[1], (data.latitude, data.longitude), heading2, height2)
+            gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
+            f.write(str(gps_coordinates[-1])+"\n")
+            counter2=0
 def gps_cb3(data):
     global gps_coordinates
     global counter3
-    global f
-    global heading3
-    global height3
-    global loc3
     counter3+=1
-    if obj_found_3 > 0 and counter3>=append_freq:
-        rospy.loginfo("UAV3 found box")
-        trans_data = pixel_global(loc3[1], loc3[0], (data.latitude, data.longitude), heading3, height3)
-        gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
-        counter3=0
+    if counter3>=append_freq :
+        #For each obj_found
+        for i in range(obj_found_3):
+            rospy.loginfo("UAV3 found box")
+            trans_data = pixel_to_global(loc3[0], loc3[1], (data.latitude, data.longitude), heading3, height3)
+            gps_coordinates.append((int((trans_data[0]-lat_offset)*10000000),int((trans_data[1]-lon_offset)*1000000)))
+            f.write(str(gps_coordinates[-1])+"\n")
+            counter3=0
 
+#Callback functions for compass heading
 def compass_cb1(data):
     global heading1
     heading1 = data.data
-
 def compass_cb2(data):
     global heading2
     heading2 = data.data
-
 def compass_cb3(data):
     global heading3
     heading3 = data.data
 
+#Callback functions for altitude data
 def alt_cb1(data):
     global height1
-    height = data.data
-
+    height1 = data.data
 def alt_cb2(data):
     global height2
-    height = data.data
-
+    height2 = data.data
 def alt_cb3(data):
     global height3
-    height = data.data
+    height3 = data.data
 
+#Function to convert from image to global frame
 def pixel_to_global(x, y, gps_center, heading, height):
-    x0 = 640/2
-    y0 = 480/2
+    x0 = 320
+    y0 = 240
     pix_to_m = 1*height/640
-    theta_pixel = np.arctan2(480-y,x) - np.pi/2
-    dist_pixel  = sqrt((x-x0)**2 + (480-y-y0)**2)
+    theta_pixel = np.arctan2(x0-x, 480-y-y0)
+    dist_pixel  = np.sqrt((x-x0)**2 + (480-y-y0)**2)
     theta       = heading*np.pi/180 + theta_pixel
     dist_met    = dist_pixel * pix_to_m
-    x_met       = -dist_met * sin(theta + 90)
-    y_met       = dist_met * cos(theta + 90)
-    lat         = gps_center[0] + y_met/102470#times something
-    lon         = gps_center[1] + x_met/102470#times something
+    x_met       = dist_met * np.cos(theta + np.pi/2)
+    y_met       = dist_met * np.sin(theta + np.pi/2)
+    lat         = gps_center[0] + y_met/102470
+    lon         = gps_center[1] + x_met/102470
     return (lat, lon)
 
+#Function to cluster data
 def cluster_data(bandwidth):
     global gps_coordinates
     global box_coordinates
     #Member coloring in plot works better with np array
     data = np.array(gps_coordinates)
-    # print(gps_coordinates)
-    #Define bandwidth for the clustering
     #Run only when gps_coordinates variable is not empty
     if len(gps_coordinates):
         #Perform mean shift clustering
@@ -155,22 +151,26 @@ def cluster_data(bandwidth):
         plt.show(block = False)
         plt.pause(0.001)
 
+#ROS Node
 def cluster_node_func():
     global box_coordinates
-    global center_gps_coordinates
-    global box_gps_msg
+    global final_gps_coordinates
     #Initialize
     rospy.init_node('gps_clustering_node', anonymous=True)
     #Subscribers
+    #Get GPS Coordinates
     rospy.Subscriber("/uav1/mavros/global_position/global", NavSatFix, gps_cb1)
     rospy.Subscriber("/uav2/mavros/global_position/global", NavSatFix, gps_cb2)
     rospy.Subscriber("/uav3/mavros/global_position/global", NavSatFix, gps_cb3)
+    #Get number of objects
     rospy.Subscriber("/uav1/obj_found", Int8, obj_number_cb1)
     rospy.Subscriber("/uav2/obj_found", Int8, obj_number_cb2)
     rospy.Subscriber("/uav3/obj_found", Int8, obj_number_cb3)
+    #Get compass heading
     rospy.Subscriber("/uav1/mavros/global_position/compass_hdg", Float64, compass_cb1)
     rospy.Subscriber("/uav2/mavros/global_position/compass_hdg", Float64, compass_cb2)
     rospy.Subscriber("/uav3/mavros/global_position/compass_hdg", Float64, compass_cb3)
+    #Get relative altitude
     rospy.Subscriber("/uav1/mavros/global_position/rel_alt", Float64, alt_cb1)
     rospy.Subscriber("/uav1/mavros/global_position/rel_alt", Float64, alt_cb2)
     rospy.Subscriber("/uav1/mavros/global_position/rel_alt", Float64, alt_cb3)
@@ -181,16 +181,12 @@ def cluster_node_func():
     plt.show(block = False)
     #Run clustering
     while not rospy.is_shutdown():
-        cluster_data(500)
-        center_gps_coordinates.data.clear()
+        cluster_data(200)
+        final_gps_coordinates.data.clear()
         for box in box_coordinates:
-            #box_gps_msg.latitude = (box[0]/10000000)+lat_offset
-            #box_gps_msg.longitude = (box[1]/1000000)+lon_offset
-            #pub.publish(box_gps_msg)
-            center_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
-            center_gps_coordinates.data.append((box[1]/10000000)+lon_offset)
-
-        pub.publish(center_gps_coordinates)
+            final_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
+            final_gps_coordinates.data.append((box[1]/10000000)+lon_offset)
+        pub.publish(final_gps_coordinates)
         rate.sleep()
     f.close()
 

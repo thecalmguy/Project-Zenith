@@ -20,7 +20,7 @@ obj_found_1=obj_found_2=obj_found_3 = 0
 counter1 = 0
 counter2 = 0
 counter3 = 0
-append_freq = 5
+append_freq = 2
 
 f = open('gps_box_swarm.txt','w+')
 
@@ -43,7 +43,7 @@ def gps_cb1(data):
     counter1+=1
     if obj_found_1 > 0 and counter1>=append_freq :
         rospy.loginfo("UAV1 found box")
-        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
+        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*10000000)))
         f.write(str(gps_coordinates[-1])+"\n")
         counter1=0
 
@@ -54,7 +54,7 @@ def gps_cb2(data):
     counter2+=1
     if obj_found_2 > 0 and counter2>=append_freq:
         rospy.loginfo("UAV2 found box")
-        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
+        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*10000000)))
         f.write(str(gps_coordinates[-1])+"\n")
         counter2=0
 
@@ -65,7 +65,7 @@ def gps_cb3(data):
     counter3+=1
     if obj_found_3 > 0 and counter3>=append_freq:
         rospy.loginfo("UAV3 found box")
-        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
+        gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*10000000)))
         f.write(str(gps_coordinates[-1])+"\n")
         counter3=0
 
@@ -128,10 +128,8 @@ def cluster_node_func():
         for box in box_coordinates:
             #box_gps_msg.latitude = (box[0]/10000000)+lat_offset
             #box_gps_msg.longitude = (box[1]/1000000)+lon_offset
-            pub.publish(final_gps_coordinates)
             final_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
             final_gps_coordinates.data.append((box[1]/10000000)+lon_offset)
-
         pub.publish(final_gps_coordinates)
         rate.sleep()
     f.close()

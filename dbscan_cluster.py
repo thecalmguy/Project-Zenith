@@ -20,7 +20,7 @@ obj_found_1=obj_found_2=obj_found_3 = 0
 counter1 = 0
 counter2 = 0
 counter3 = 0
-append_freq = 5
+append_freq = 2
 
 f = open('gps_box_swarm.txt','w+')
 
@@ -123,15 +123,14 @@ def cluster_node_func():
     plt.show(block = False)
     #Run clustering
     while not rospy.is_shutdown():
-        cluster_data(400, 3)
+        cluster_data(1000, 8)
         final_gps_coordinates.data.clear()
         for box in box_coordinates:
             #box_gps_msg.latitude = (box[0]/10000000)+lat_offset
             #box_gps_msg.longitude = (box[1]/1000000)+lon_offset
-            pub.publish(final_gps_coordinates)
             final_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
             final_gps_coordinates.data.append((box[1]/10000000)+lon_offset)
-
+            pub.publish(final_gps_coordinates)
         pub.publish(final_gps_coordinates)
         rate.sleep()
     f.close()
