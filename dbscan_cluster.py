@@ -3,7 +3,7 @@ import rospy
 from std_msgs.msg import Int8
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import NavSatFix
-from sklearn.cluster import MeanShift
+from sklearn.cluster import DBSCAN
 #from threading import Thread
 import matplotlib.pyplot as plt
 import numpy as np
@@ -71,7 +71,7 @@ def gps_cb3(data):
 
 
 
-def cluster_data(bandwidth):
+def cluster_data(eps, min_samples):
     global gps_coordinates
     global box_coordinates
     #Member coloring in plot works better with np array
@@ -81,11 +81,11 @@ def cluster_data(bandwidth):
     #Run only when gps_coordinates variable is not empty
     if len(gps_coordinates):
         #Perform mean shift clustering
-        cluster_obj = MeanShift(bandwidth).fit(data)
+        cluster_obj = DBSCAN(eps, min_samples).fit(data)
         #Cluster labels
         cluster_labels = cluster_obj.labels_
         #Update box coordinates as the cluster centers
-        box_coordinates = cluster_obj.cluster_centers_
+        box_coordinates = data[cluster_obj.core_sample_indices_]
         print(box_coordinates)
         #Number of clusters
         num_clusters = len(box_coordinates)
@@ -123,7 +123,7 @@ def cluster_node_func():
     plt.show(block = False)
     #Run clustering
     while not rospy.is_shutdown():
-        cluster_data(200)
+        cluster_data(400, 3)
         final_gps_coordinates.data.clear()
         for box in box_coordinates:
             #box_gps_msg.latitude = (box[0]/10000000)+lat_offset
