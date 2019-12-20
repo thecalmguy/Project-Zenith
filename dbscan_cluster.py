@@ -22,7 +22,7 @@ counter2 = 0
 counter3 = 0
 append_freq = 2
 
-f = open('gps_box_swarm.txt','w+')
+# f = open('gps_box_swarm.txt','w+')
 
 def obj_number_cb1(data):
     global obj_found_1
@@ -44,7 +44,6 @@ def gps_cb1(data):
     if obj_found_1 > 0 and counter1>=append_freq :
         rospy.loginfo("UAV1 found box")
         gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
         counter1=0
 
 def gps_cb2(data):
@@ -55,7 +54,6 @@ def gps_cb2(data):
     if obj_found_2 > 0 and counter2>=append_freq:
         rospy.loginfo("UAV2 found box")
         gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
         counter2=0
 
 def gps_cb3(data):
@@ -66,16 +64,14 @@ def gps_cb3(data):
     if obj_found_3 > 0 and counter3>=append_freq:
         rospy.loginfo("UAV3 found box")
         gps_coordinates.append((int((data.latitude-lat_offset)*10000000),int((data.longitude-lon_offset)*1000000)))
-        f.write(str(gps_coordinates[-1])+"\n")
         counter3=0
-
-
 
 def cluster_data(eps, min_samples):
     global gps_coordinates
     global box_coordinates
     #Member coloring in plot works better with np array
     data = np.array(gps_coordinates)
+    # print(gps_coordinates)
     # print(gps_coordinates)
     #Define bandwidth for the clustering
     #Run only when gps_coordinates variable is not empty
@@ -84,24 +80,39 @@ def cluster_data(eps, min_samples):
         cluster_obj = DBSCAN(eps, min_samples).fit(data)
         #Cluster labels
         cluster_labels = cluster_obj.labels_
-        #Update box coordinates as the cluster centers
-        box_coordinates = data[cluster_obj.core_sample_indices_]
-        print(box_coordinates)
         #Number of clusters
-        num_clusters = len(box_coordinates)
+        num_clusters = len(np.unique(cluster_labels))
+        # print(cluster_obj.core_sample_indices_)
+        #Empty box coordinates
+        box_coordinates = []
         #Plot
         colors = 'rgbcmyk'
         plt.clf()
-        for k in range(num_clusters):
+        for k in np.unique(cluster_labels):
+            if k == -1:
+                num_clusters -= 1
+                continue
             #Get all the members in the cluster
             cluster_members = cluster_labels == k
+            #Go through each cluster core sample
+            core_samples_in_cluster = []
+            for i in cluster_obj.core_sample_indices_:
+                #Check if core sample is in the same cluster
+                if cluster_labels[i] == k:
+                    #If in the same cluster add it
+                    core_samples_in_cluster.append(data[i])
+            #Provide mean to box coordinate
+            box_coordinates.append(np.mean(core_samples_in_cluster, axis=0))
             #Plot each member with different colors
             plt.plot(data[cluster_members, 0], data[cluster_members, 1],  '.', color = colors[k])
-            plt.plot(box_coordinates[k][0], box_coordinates[k][1], 'o',
-                     markerfacecolor=colors[k], markeredgecolor='k', markersize=14)
+            if len(box_coordinates):
+                plt.plot(box_coordinates[k][0], box_coordinates[k][1], 'o',
+                         markerfacecolor=colors[k], markeredgecolor='k', markersize=10)
+        # print("No. of clusters detected: {0}".format(num_clusters))
         plt.title("No. of clusters detected: {0}".format(num_clusters))
         plt.show(block = False)
         plt.pause(0.001)
+        # print(box_coordinates)
 
 def cluster_node_func():
     global box_coordinates
@@ -119,21 +130,18 @@ def cluster_node_func():
     #Publisher
     pub = rospy.Publisher('/box_gps', Float64MultiArray, queue_size=10)
     #Set rate
-    rate = rospy.Rate(1)
+    rate = rospy.Rate(10)
     plt.show(block = False)
     #Run clustering
     while not rospy.is_shutdown():
-        cluster_data(1000, 8)
+        cluster_data(100,8)
         final_gps_coordinates.data.clear()
         for box in box_coordinates:
-            #box_gps_msg.latitude = (box[0]/10000000)+lat_offset
-            #box_gps_msg.longitude = (box[1]/1000000)+lon_offset
             final_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
             final_gps_coordinates.data.append((box[1]/10000000)+lon_offset)
-            pub.publish(final_gps_coordinates)
         pub.publish(final_gps_coordinates)
         rate.sleep()
-    f.close()
+    # f.close()
 
 if __name__ == '__main__':
     try:
