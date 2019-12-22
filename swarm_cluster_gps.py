@@ -3,7 +3,7 @@ import rospy
 from std_msgs.msg import Int8
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import NavSatFix
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import MeanShift
 #from threading import Thread
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,8 +65,8 @@ def gps_cb3(data):
         counter3=0
 
 
-
-def cluster_data(eps, min_samples):
+#Function to cluster data- Mean Shift
+def cluster_data(bandwidth):
     global gps_coordinates
     global box_coordinates
     #Member coloring in plot works better with np array
@@ -74,40 +74,27 @@ def cluster_data(eps, min_samples):
     #Run only when gps_coordinates variable is not empty
     if len(gps_coordinates):
         #Perform mean shift clustering
-        cluster_obj = DBSCAN(eps, min_samples).fit(data)
+        cluster_obj = MeanShift(bandwidth).fit(data)
         #Cluster labels
         cluster_labels = cluster_obj.labels_
+        #Update box coordinates as the cluster centers
+        box_coordinates = cluster_obj.cluster_centers_
+        print(box_coordinates)
         #Number of clusters
-        num_clusters = len(np.unique(cluster_labels))
-        #Empty box coordinates
-        box_coordinates = []
+        num_clusters = len(box_coordinates)
         #Plot
-        colors = 'rgbcmykrgbcmyk'
+        colors = 'rgbcmyk'
         plt.clf()
-        for k in np.unique(cluster_labels):
-            if k == -1:
-                num_clusters -= 1
-                continue
+        for k in range(num_clusters):
             #Get all the members in the cluster
             cluster_members = cluster_labels == k
-            #Go through each cluster core sample
-            core_samples_in_cluster = []
-            for i in cluster_obj.core_sample_indices_:
-                #Check if core sample is in the same cluster
-                if cluster_labels[i] == k:
-                    #If in the same cluster add it
-                    core_samples_in_cluster.append(data[i])
-            #Provide mean to box coordinate
-            box_coordinates.append(np.mean(core_samples_in_cluster, axis=0))
             #Plot each member with different colors
             plt.plot(data[cluster_members, 0], data[cluster_members, 1],  '.', color = colors[k])
-            if len(box_coordinates):
-                plt.plot(box_coordinates[k][0], box_coordinates[k][1], 'o',
-                         markerfacecolor=colors[k], markeredgecolor='k', markersize=10)
+            plt.plot(box_coordinates[k][0], box_coordinates[k][1], 'o',
+                     markerfacecolor=colors[k], markeredgecolor='k', markersize=14)
         plt.title("No. of clusters detected: {0}".format(num_clusters))
         plt.show(block = False)
         plt.pause(0.001)
-        # print(box_coordinates)
 
 def cluster_node_func():
     global box_coordinates
@@ -129,7 +116,7 @@ def cluster_node_func():
     plt.show(block = False)
     #Run clustering
     while not rospy.is_shutdown():
-        cluster_data(100,8)
+        cluster_data(100)
         final_gps_coordinates.data.clear()
         for box in box_coordinates:
             final_gps_coordinates.data.append((box[0]/10000000)+lat_offset)
